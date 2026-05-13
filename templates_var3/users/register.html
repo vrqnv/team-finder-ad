@@ -13,14 +13,47 @@
     <form method="post">
         {% csrf_token %}
         <div class="name-fields">
-            <div>{{ form.name.label_tag }} {{ form.name }}</div>
-            <div>{{ form.surname.label_tag }} {{ form.surname }}</div>
+            <div>
+                <label for="{{ form.name.id_for_label }}">Имя:</label>
+                {{ form.name }}
+            </div>
+            <div>
+                <label for="{{ form.surname.id_for_label }}">Фамилия:</label>
+                {{ form.surname }}
+            </div>
         </div>
-        {{ form.email.label_tag }} {{ form.email }}
-        {{ form.password.label_tag }} {{ form.password }}
-        {% for error in form.errors.values %}
-        <p style="color: red;">{{error}}</p>
-        {% endfor %}
+        
+        <div>
+            <label for="{{ form.email.id_for_label }}">Email:</label>
+            {{ form.email }}
+        </div>
+        
+        <div>
+            <label for="{{ form.phone.id_for_label }}">Телефон:</label>
+            {{ form.phone }}
+            <small class="help-text">Формат: +7XXXXXXXXXX</small>
+        </div>
+        
+        <div>
+            <label for="{{ form.password1.id_for_label }}">Пароль:</label>
+            {{ form.password1 }}
+        </div>
+        
+        <div>
+            <label for="{{ form.password2.id_for_label }}">Подтверждение пароля:</label>
+            {{ form.password2 }}
+        </div>
+        
+        {% if form.errors %}
+            <div class="error-message">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        <p style="color: red;">{{ error }}</p>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        {% endif %}
+        
         <button type="submit">Зарегистрироваться</button>
     </form>
     <p class="auth-link">Уже есть аккаунт? <a href="{% url 'users:login' %}">Войти</a></p>
