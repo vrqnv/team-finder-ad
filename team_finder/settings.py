@@ -10,8 +10,6 @@ DEBUG = config("DJANGO_DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = []
 
-
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -38,7 +36,9 @@ ROOT_URLCONF = "team_finder.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / f"templates_var{config('TASK_VERSION', default='1')}"],
+        "DIRS": [
+            BASE_DIR / f"templates_var{config('TASK_VERSION', default='1')}"
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -69,23 +69,36 @@ DATABASES = {
 
 
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+# https://docs.djangoproject.com/en/5.2/
+# ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = []
 if not DEBUG:
     AUTH_PASSWORD_VALIDATORS.extend(
         [
             {
-                "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+                "NAME": (
+                    "django.contrib.auth.password_validation."
+                    "UserAttributeSimilarityValidator"
+                ),
             },
             {
-                "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+                "NAME": (
+                    "django.contrib.auth.password_validation."
+                    "MinimumLengthValidator"
+                ),
             },
             {
-                "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+                "NAME": (
+                    "django.contrib.auth.password_validation."
+                    "CommonPasswordValidator"
+                ),
             },
             {
-                "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+                "NAME": (
+                    "django.contrib.auth.password_validation."
+                    "NumericPasswordValidator"
+                ),
             },
         ]
     )
@@ -121,15 +134,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = 'users.User'
 
 # Login redirect
-LOGIN_URL = '/users/login/'
-LOGIN_REDIRECT_URL = '/projects/list/'
-LOGOUT_REDIRECT_URL = '/projects/list/'
-
-# Media files configuration
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-# Login/Logout redirects
 LOGIN_URL = '/users/login/'
 LOGIN_REDIRECT_URL = '/projects/list/'
 LOGOUT_REDIRECT_URL = '/projects/list/'
