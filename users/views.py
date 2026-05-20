@@ -1,108 +1,112 @@
-from django.contrib.auth import (
-    login, authenticate, logout, update_session_auth_hash
-)
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, redirect, get_object_or_404
-from django.views import View
 from django.contrib import messages
-from django.core.paginator import Paginator
-from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import login, update_session_auth_hash
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView as BaseLoginView
+from django.contrib.auth.views import LogoutView as BaseLogoutView
+from django.contrib.auth.views import (
+    PasswordChangeView as BasePasswordChangeView,
+)
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from users.constants import USERS_PER_PAGE
+from users.forms import UserLoginForm, UserProfileForm, UserRegistrationForm
+from users.models import User
 
-from .models import User
-from .forms import UserRegistrationForm, UserLoginForm, UserProfileForm
 
+class RegisterView(CreateView):
+    model = User
+    form_class = UserRegistrationForm
+    template_name = 'users/register.html'
 
-class RegisterView(View):
-    def get(self, request):
-        form = UserRegistrationForm()
-        return render(request, 'users/register.html', {'form': form})
+    def form_valid(self, form):
+        user = form.save(commit=False)
+        user.set_password(form.cleaned_data['password1'])
+        user.save()
+        login(self.request, user)
+        return redirect(reverse('projects:project_list'))
 
-    def post(self, request):
-        form = UserRegistrationForm(request.POST)
+    def form_invalid(self, form):
+        return render(self.request, self.template_name, {'form': form})
+
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
+        return render(request, self.template_name, {'form': form})
+
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
         if form.is_valid():
-            user = form.save(commit=False)
-            user.set_password(form.cleaned_data['password1'])
-            user.save()
-            login(request, user)
-            return redirect('/projects/list/')
-        return render(request, 'users/register.html', {'form': form})
+            return self.form_valid(form)
+        return self.form_invalid(form)
 
 
-class LoginView(View):
-    def get(self, request):
-        form = UserLoginForm()
-        return render(request, 'users/login.html', {'form': form})
+class LoginView(BaseLoginView):
+    form_class = UserLoginForm
+    template_name = 'users/login.html'
 
-    def post(self, request):
-        form = UserLoginForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data['email']
-            password = form.cleaned_data['password']
-            user = authenticate(request, username=email, password=password)
-            if user is not None:
-                login(request, user)
-                next_url = request.GET.get('next', '/projects/list/')
-                return redirect(next_url)
-            else:
-                form.add_error(None, 'Неверный email или пароль')
-        return render(request, 'users/login.html', {'form': form})
+    def get_success_url(self):
+        next_url = self.request.GET.get('next')
+        if next_url:
+            return next_url
+        return reverse('projects:project_list')
 
 
-class LogoutView(View):
-    def get(self, request):
-        logout(request)
-        return redirect('/projects/list/')
+class LogoutView(BaseLogoutView):
+    next_page = 'projects:project_list'
 
 
-class UserListView(View):
-    def get(self, request):
-        users = User.objects.filter(is_active=True).order_by('-created_at')
+class UserListView(ListView):
+    model = User
+    template_name = 'users/participants.html'
+    context_object_name = 'participants'
+    paginate_by = USERS_PER_PAGE
 
-        paginator = Paginator(users, 12)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-
-        return render(request, 'users/participants.html', {
-            'participants': page_obj,
-        })
+    def get_queryset(self):
+        return User.objects.filter(is_active=True).order_by('-created_at')
 
 
-class UserDetailView(View):
-    def get(self, request, pk):
-        user = get_object_or_404(User, pk=pk, is_active=True)
-        owned_projects = user.owned_projects.all().order_by('-created_at')[:6]
+class UserDetailView(DetailView):
+    model = User
+    template_name = 'users/user-details.html'
+    context_object_name = 'user'
+    pk_url_kwarg = 'user_id'
 
-        return render(request, 'users/user-details.html', {
-            'user': user,
-            'owned_projects': owned_projects,
-        })
+    def get_queryset(self):
+        return super().get_queryset().filter(is_active=True)
 
-
-class ProfileEditView(LoginRequiredMixin, View):
-    def get(self, request):
-        form = UserProfileForm(instance=request.user)
-        return render(request, 'users/edit_profile.html', {'form': form})
-
-    def post(self, request):
-        form = UserProfileForm(
-            request.POST, request.FILES, instance=request.user
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['owned_projects'] = (
+            self.object.owned_projects.all().order_by('-created_at')[:6]
         )
-        if form.is_valid():
-            form.save()
-            return redirect(f'/users/{request.user.pk}/')
-        return render(request, 'users/edit_profile.html', {'form': form})
+        return context
 
 
-class ChangePasswordView(LoginRequiredMixin, View):
-    def get(self, request):
-        form = PasswordChangeForm(user=request.user)
-        return render(request, 'users/change_password.html', {'form': form})
+class ProfileEditView(LoginRequiredMixin, UpdateView):
+    model = User
+    form_class = UserProfileForm
+    template_name = 'users/edit_profile.html'
 
-    def post(self, request):
-        form = PasswordChangeForm(user=request.user, data=request.POST)
-        if form.is_valid():
-            form.save()
-            update_session_auth_hash(request, form.user)
-            messages.success(request, 'Пароль успешно изменен')
-            return redirect(f'/users/{request.user.pk}/')
-        return render(request, 'users/change_password.html', {'form': form})
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_success_url(self):
+        return reverse(
+            'users:user_detail', kwargs={'user_id': self.request.user.pk}
+        )
+
+
+class ChangePasswordView(BasePasswordChangeView):
+    template_name = 'users/change_password.html'
+
+    def form_valid(self, form):
+        form.save()
+        update_session_auth_hash(self.request, form.user)
+        messages.success(self.request, 'Пароль успешно изменен')
+        return redirect(reverse(
+            'users:user_detail',
+            kwargs={'user_id': self.request.user.pk}
+        ))
+
+    def form_invalid(self, form):
+        return render(self.request, self.template_name, {'form': form})

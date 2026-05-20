@@ -1,57 +1,39 @@
-from django.contrib.auth.models import AbstractBaseUser
-from django.contrib.auth.models import BaseUserManager, PermissionsMixin
+import random
+from io import BytesIO
+
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.core.files.base import ContentFile
 from django.core.validators import RegexValidator
 from django.db import models
 from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
-from django.core.files.base import ContentFile
-import random
-
-
-class UserManager(BaseUserManager):
-    def create_user(
-        self, email, name, surname, phone, password=None, **extra_fields
-    ):
-        if not email:
-            raise ValueError('Email обязателен')
-        email = self.normalize_email(email)
-        user = self.model(
-            email=email,
-            name=name,
-            surname=surname,
-            phone=phone,
-            **extra_fields
-        )
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(
-        self, email, name, surname, phone, password=None, **extra_fields
-    ):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-        return self.create_user(
-            email, name, surname, phone, password, **extra_fields
-        )
+from users.constants import (
+    AVATAR_COLORS,
+    AVATAR_SIZE,
+    AVATAR_TEXT_COLOR,
+    AVATAR_TEXT_FONT_PATH,
+    AVATAR_TEXT_FONT_SIZE,
+    MAX_LENGTH_ABOUT,
+    MAX_LENGTH_NAME,
+    MAX_LENGTH_PHONE,
+    PHONE_REGEX_PATTERN,
+)
+from users.managers import UserManager
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    COLORS = [
-        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'
-    ]
-
     email = models.EmailField(unique=True, verbose_name='Email')
-    name = models.CharField(max_length=124, verbose_name='Имя')
-    surname = models.CharField(max_length=124, verbose_name='Фамилия')
+    name = models.CharField(
+        max_length=MAX_LENGTH_NAME, verbose_name='Имя'
+    )
+    surname = models.CharField(
+        max_length=MAX_LENGTH_NAME, verbose_name='Фамилия'
+    )
     avatar = models.ImageField(upload_to='avatars/', verbose_name='Аватар')
     phone = models.CharField(
-        max_length=12,
+        max_length=MAX_LENGTH_PHONE,
         validators=[
             RegexValidator(
-                r'^\+7\d{10}$',
+                PHONE_REGEX_PATTERN,
                 message='Номер должен быть в формате +7XXXXXXXXXX'
             )
         ],
@@ -60,7 +42,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     github_url = models.URLField(blank=True, null=True, verbose_name='GitHub')
     about = models.CharField(
-        max_length=256, blank=True, null=True, verbose_name='О себе'
+        max_length=MAX_LENGTH_ABOUT,
+        blank=True, null=True, verbose_name='О себе'
     )
 
     is_active = models.BooleanField(default=True)
@@ -86,29 +69,32 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
     def generate_avatar(self):
-        size = (200, 200)
-        color = random.choice(self.COLORS)
+        color = random.choice(AVATAR_COLORS)
 
-        image = Image.new('RGB', size, color)
+        image = Image.new('RGB', AVATAR_SIZE, color)
         draw = ImageDraw.Draw(image)
 
+        font = None
         try:
-            font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 100
-            )
+            font = ImageFont.truetype(AVATAR_TEXT_FONT_PATH,
+                                      AVATAR_TEXT_FONT_SIZE)
         except Exception:
             font = ImageFont.load_default()
 
         text = self.name[0].upper()
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        position = (
-            (size[0] - text_width) // 2,
-            (size[1] - text_height) // 2
-        )
 
-        draw.text(position, text, fill='white', font=font)
+        if font == ImageFont.load_default():
+            text_position = (AVATAR_SIZE[0] // 3, AVATAR_SIZE[1] // 3)
+            draw.text(text_position, text, fill=AVATAR_TEXT_COLOR, font=font)
+        else:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            position = (
+                (AVATAR_SIZE[0] - text_width) // 2,
+                (AVATAR_SIZE[1] - text_height) // 2
+            )
+            draw.text(position, text, fill=AVATAR_TEXT_COLOR, font=font)
 
         buffer = BytesIO()
         image.save(buffer, format='PNG')

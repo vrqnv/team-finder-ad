@@ -1,20 +1,66 @@
 # TeamFinder
 
-## Запуск проекта
+Платформа для поиска команды и совместной работы над pet-проектами. Разработчики, дизайнеры и другие специалисты могут публиковать свои идеи, находить единомышленников и присоединяться к уже существующим проектам.
 
-1. Клонируйте репозиторий и перейдите в папку проекта.
+## Функциональность
 
-2. Создайте файл .env со следующим содержимым:
-   DJANGO_SECRET_KEY=change_for_safety
-   DJANGO_DEBUG=True
-   TASK_VERSION=3
+- Регистрация и аутентификация пользователей
+- Создание, редактирование и завершение проектов
+- Участие в проектах других пользователей
+- Добавление проектов в избранное
+- Фильтрация пользователей по критериям:
+  - Авторы избранных проектов
+  - Авторы проектов, в которых пользователь участвует
+  - Пользователи, которым нравятся проекты пользователя
+  - Участники проектов пользователя
+- Редактирование профиля (аватар, контактные данные, описание)
+- Смена пароля
 
-3. Запустите контейнеры командой: docker-compose up --build
+## Стек технологий
 
-4. В отдельном терминале выполните миграции: docker exec -it team-finder-ad-web-1 python manage.py migrate
+- **Python** 3.10
+- **Django** 5.2
+- **PostgreSQL** 16
+- **Docker** & **Docker Compose**
+- **Pillow** (генерация аватарок)
+- **python-decouple** (переменные окружения)
 
-5. Создайте суперпользователя: docker exec -it team-finder-ad-web-1 python manage.py createsuperuser
+## Установка и запуск
 
-6. Откройте в браузере: http://localhost:8000/projects/list/
+### Требования
 
-7. Для остановки проекта выполните: docker-compose down
+- Установленные Docker и Docker Compose
+- Git
+
+### Шаги для запуска
+
+1. **Клонируйте репозиторий:**
+
+```bash
+git clone <url-репозитория>
+cd team-finder-ad
+
+## Переменные окружения (.env)
+
+Создайте файл `.env` в корне проекта:
+
+```env
+DJANGO_SECRET_KEY=change_for_safety
+DJANGO_DEBUG=True
+
+POSTGRES_DB=team_finder
+POSTGRES_USER=team_finder
+POSTGRES_PASSWORD=team_finder
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+
+ALLOWED_HOSTS=localhost,127.0.0.1
+USE_SQLITE=False
+
+# Автор
+
+Максим Тикшаев
+
+GitHub: @tikshaev
+
+Email: tikshaev.ycheba@gmail.com

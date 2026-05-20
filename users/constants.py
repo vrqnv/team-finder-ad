@@ -1,0 +1,34 @@
+MAX_LENGTH_NAME = 124
+MAX_LENGTH_PHONE = 12
+MAX_LENGTH_ABOUT = 256
+
+PHONE_REGEX_PATTERN = r'^\+7\d{10}$'
+
+RED = '#FF6B6B'
+GREEN = '#4ECDC4'
+BLUE = '#45B7D1'
+MINT = '#96CEB4'
+YELLOW = '#FFEAA7'
+PURPLE = '#DDA0DD'
+TEAL = '#98D8C8'
+ORANGE = '#F7DC6F'
+LAVENDER = '#BB8FCE'
+PINK = '#85C1E2'
+
+AVATAR_COLORS = [
+    RED, GREEN, BLUE, MINT, YELLOW,
+    PURPLE, TEAL, ORANGE, LAVENDER, PINK
+]
+
+AVATAR_SIZE = (200, 200)
+AVATAR_TEXT_COLOR = 'white'
+AVATAR_TEXT_FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+AVATAR_TEXT_FONT_SIZE = 100
+
+PHONE_ERROR_MESSAGE = 'Номер должен быть в формате +7XXXXXXXXXX'
+PHONE_ALREADY_EXISTS_ERROR = (
+    'Пользователь с таким номером телефона уже существует'
+)
+EMAIL_ALREADY_EXISTS_ERROR = 'Пользователь с таким email уже существует'
+
+USERS_PER_PAGE = 12

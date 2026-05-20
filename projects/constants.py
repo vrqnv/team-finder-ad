@@ -1,0 +1,15 @@
+MAX_LENGTH_NAME_SKILL = 124
+MAX_LENGTH_NAME_PROJECT = 200
+
+STATUS_OPEN = 'open'
+STATUS_CLOSED = 'closed'
+
+STATUS_CHOICES = [
+    (STATUS_OPEN, 'Open'),
+    (STATUS_CLOSED, 'Closed'),
+]
+
+GITHUB_URL_PREFIXES = ('https://github.com/', 'http://github.com/')
+
+PROJECTS_PER_PAGE = 12
+SKILLS_AUTOCOMPLETE_LIMIT = 10

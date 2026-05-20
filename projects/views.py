@@ -1,119 +1,134 @@
 import json
-from django.http import JsonResponse
+from http import HTTPStatus
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.views import View
-from django.core.paginator import Paginator
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from projects.constants import (
+    PROJECTS_PER_PAGE,
+    SKILLS_AUTOCOMPLETE_LIMIT,
+    STATUS_CLOSED,
+    STATUS_OPEN,
+)
+from projects.forms import ProjectForm
+from projects.models import Project, Skill
 
-from .models import Project, Skill
-from .forms import ProjectForm
 
+class ProjectListView(ListView):
+    model = Project
+    template_name = 'projects/project_list.html'
+    context_object_name = 'projects'
+    paginate_by = PROJECTS_PER_PAGE
 
-class ProjectListView(View):
-    def get(self, request):
+    def get_queryset(self):
         projects = (
             Project.objects
-            .filter(status='open')
+            .filter(status=STATUS_OPEN)
+            .select_related('owner')
+            .prefetch_related('participants', 'skills')
             .order_by('-created_at')
         )
-        all_skills = Skill.objects.all()
 
-        active_skill = request.GET.get('skill')
+        active_skill = self.request.GET.get('skill')
         if active_skill:
             projects = projects.filter(skills__name=active_skill)
 
-        paginator = Paginator(projects, 12)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
+        return projects
 
-        return render(request, 'projects/project_list.html', {
-            'projects': page_obj,
-            'all_skills': all_skills,
-            'active_skill': active_skill,
-        })
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['all_skills'] = Skill.objects.all()
+        context['active_skill'] = self.request.GET.get('skill')
+        return context
 
 
-class ProjectDetailView(View):
-    def get(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
-        return render(
-            request,
-            'projects/project-details.html',
-            {'project': project}
+class ProjectDetailView(DetailView):
+    model = Project
+    template_name = 'projects/project-details.html'
+    context_object_name = 'project'
+    pk_url_kwarg = 'project_id'
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related('owner')
+            .prefetch_related('participants')
         )
 
 
-class ProjectCreateView(LoginRequiredMixin, View):
-    def get(self, request):
-        form = ProjectForm()
-        return render(request, 'projects/create-project.html', {
-            'form': form,
-            'is_edit': False
-        })
+class ProjectCreateView(LoginRequiredMixin, CreateView):
+    model = Project
+    form_class = ProjectForm
+    template_name = 'projects/create-project.html'
 
-    def post(self, request):
-        form = ProjectForm(request.POST)
-        if form.is_valid():
-            project = form.save(commit=False)
-            project.owner = request.user
-            project.save()
-            project.participants.add(request.user)
-            return redirect(f'/projects/{project.pk}/')
-        return render(request, 'projects/create-project.html', {
-            'form': form,
-            'is_edit': False
-        })
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = False
+        return context
+
+    def form_valid(self, form):
+        project = form.save(commit=False)
+        project.owner = self.request.user
+        project.save()
+        project.participants.add(self.request.user)
+        return redirect(reverse(
+            'projects:project_detail',
+            kwargs={'project_id': project.pk}
+        ))
 
 
-class ProjectEditView(LoginRequiredMixin, UserPassesTestMixin, View):
+class ProjectEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Project
+    form_class = ProjectForm
+    template_name = 'projects/create-project.html'
+    pk_url_kwarg = 'project_id'
+
     def test_func(self):
-        project = get_object_or_404(Project, pk=self.kwargs['pk'])
+        project = self.get_object()
         return self.request.user == project.owner
 
-    def get(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
-        form = ProjectForm(instance=project)
-        return render(request, 'projects/create-project.html', {
-            'form': form,
-            'is_edit': True,
-            'project': project
-        })
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = True
+        context['project'] = self.get_object()
+        return context
 
-    def post(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
-        form = ProjectForm(request.POST, instance=project)
-        if form.is_valid():
-            form.save()
-            return redirect(f'/projects/{project.pk}/')
-        return render(request, 'projects/create-project.html', {
-            'form': form,
-            'is_edit': True,
-            'project': project
-        })
+    def get_success_url(self):
+        return reverse(
+            'projects:project_detail',
+            kwargs={'project_id': self.object.pk}
+        )
 
 
 class ProjectCompleteView(LoginRequiredMixin, UserPassesTestMixin, View):
     def test_func(self):
-        project = get_object_or_404(Project, pk=self.kwargs['pk'])
-        return self.request.user == project.owner and project.status == 'open'
+        project = get_object_or_404(Project, pk=self.kwargs.get('project_id'))
+        return (
+            self.request.user == project.owner and
+            project.status == STATUS_OPEN
+        )
 
-    def post(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
-        project.status = 'closed'
+    def post(self, request, project_id):
+        project = get_object_or_404(Project, pk=project_id)
+        project.status = STATUS_CLOSED
         project.save()
-        return JsonResponse({'status': 'ok', 'project_status': 'closed'})
+        return JsonResponse({'status': 'ok', 'project_status': STATUS_CLOSED})
 
 
 class ToggleParticipateView(LoginRequiredMixin, View):
-    def post(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
-        if request.user in project.participants.all():
+    def post(self, request, project_id):
+        project = get_object_or_404(Project, pk=project_id)
+        is_participating = project.participants.filter(
+            pk=request.user.pk
+        ).exists()
+        if is_participating:
             project.participants.remove(request.user)
-            is_participating = False
         else:
             project.participants.add(request.user)
-            is_participating = True
         return JsonResponse({
             'status': 'ok',
             'participating': is_participating
@@ -128,7 +143,7 @@ class SkillAutocompleteView(View):
 
         skills = Skill.objects.filter(
             name__istartswith=query
-        ).order_by('name')[:10]
+        ).order_by('name')[:SKILLS_AUTOCOMPLETE_LIMIT]
 
         data = [{'id': skill.id, 'name': skill.name} for skill in skills]
         return JsonResponse(data, safe=False)
@@ -139,7 +154,10 @@ class AddSkillToProjectView(LoginRequiredMixin, View):
         project = get_object_or_404(Project, pk=project_id)
 
         if request.user != project.owner:
-            return JsonResponse({'error': 'Permission denied'}, status=403)
+            return JsonResponse(
+                {'error': 'Permission denied'},
+                status=HTTPStatus.FORBIDDEN
+            )
 
         try:
             data = json.loads(request.body)
@@ -149,22 +167,27 @@ class AddSkillToProjectView(LoginRequiredMixin, View):
             skill_id = request.POST.get('skill_id')
             skill_name = request.POST.get('name')
 
-        skill = None
         created = False
 
         if skill_id:
             try:
                 skill = Skill.objects.get(pk=skill_id)
             except Skill.DoesNotExist:
-                return JsonResponse({'error': 'Skill not found'}, status=404)
+                return JsonResponse(
+                    {'error': 'Skill not found'},
+                    status=HTTPStatus.NOT_FOUND
+                )
         elif skill_name:
             skill, created = Skill.objects.get_or_create(
                 name=skill_name.strip()
             )
         else:
-            return JsonResponse({'error': 'No skill provided'}, status=400)
+            return JsonResponse(
+                {'error': 'No skill provided'},
+                status=HTTPStatus.BAD_REQUEST
+            )
 
-        if skill in project.skills.all():
+        if project.skills.filter(pk=skill.pk).exists():
             return JsonResponse({
                 'skill_id': skill.id,
                 'created': created,
@@ -186,9 +209,12 @@ class RemoveSkillFromProjectView(LoginRequiredMixin, View):
         skill = get_object_or_404(Skill, pk=skill_id)
 
         if request.user != project.owner:
-            return JsonResponse({'error': 'Permission denied'}, status=403)
+            return JsonResponse(
+                {'error': 'Permission denied'},
+                status=HTTPStatus.FORBIDDEN
+            )
 
-        if skill in project.skills.all():
+        if project.skills.filter(pk=skill.pk).exists():
             project.skills.remove(skill)
             return JsonResponse({'status': 'ok', 'removed': True})
 

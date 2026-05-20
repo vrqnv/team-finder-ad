@@ -1,10 +1,17 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
+from django.urls import reverse
+from projects.constants import (
+    MAX_LENGTH_NAME_PROJECT,
+    MAX_LENGTH_NAME_SKILL,
+    STATUS_CHOICES,
+    STATUS_OPEN,
+)
 
 
 class Skill(models.Model):
     name = models.CharField(
-        max_length=124,
+        max_length=MAX_LENGTH_NAME_SKILL,
         unique=True,
         verbose_name='Название навыка'
     )
@@ -19,13 +26,8 @@ class Skill(models.Model):
 
 
 class Project(models.Model):
-    STATUS_CHOICES = [
-        ('open', 'Open'),
-        ('closed', 'Closed'),
-    ]
-
     name = models.CharField(
-        max_length=200,
+        max_length=MAX_LENGTH_NAME_PROJECT,
         verbose_name='Название проекта'
     )
     description = models.TextField(
@@ -49,9 +51,9 @@ class Project(models.Model):
         verbose_name='GitHub'
     )
     status = models.CharField(
-        max_length=6,
+        max_length=max(len(choice[0]) for choice in STATUS_CHOICES),
         choices=STATUS_CHOICES,
-        default='open',
+        default=STATUS_OPEN,
         verbose_name='Статус'
     )
     participants = models.ManyToManyField(
@@ -74,3 +76,7 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_absolute_url(self):
+        return reverse('projects:project_detail',
+                       kwargs={'project_id': self.pk})

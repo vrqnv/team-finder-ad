@@ -1,22 +1,32 @@
+import re
+
+from core.mixins import GitHubURLMixin
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
-from .models import User
-import re
+from users.constants import (
+    EMAIL_ALREADY_EXISTS_ERROR,
+    MAX_LENGTH_NAME,
+    MAX_LENGTH_PHONE,
+    PHONE_ALREADY_EXISTS_ERROR,
+    PHONE_ERROR_MESSAGE,
+    PHONE_REGEX_PATTERN,
+)
+from users.models import User
 
 
 class UserRegistrationForm(UserCreationForm):
     name = forms.CharField(
-        max_length=124, required=True, label='Имя'
+        max_length=MAX_LENGTH_NAME, required=True, label='Имя'
     )
     surname = forms.CharField(
-        max_length=124, required=True, label='Фамилия'
+        max_length=MAX_LENGTH_NAME, required=True, label='Фамилия'
     )
     email = forms.EmailField(
         required=True, label='Email'
     )
     phone = forms.CharField(
-        max_length=12, required=True, label='Телефон'
+        max_length=MAX_LENGTH_PHONE, required=True, label='Телефон'
     )
 
     class Meta:
@@ -29,22 +39,16 @@ class UserRegistrationForm(UserCreationForm):
         phone = self.cleaned_data.get('phone')
         if phone.startswith('8'):
             phone = '+7' + phone[1:]
-        if not re.match(r'^\+7\d{10}$', phone):
-            raise ValidationError(
-                'Номер должен быть в формате +7XXXXXXXXXX'
-            )
+        if not re.match(PHONE_REGEX_PATTERN, phone):
+            raise ValidationError(PHONE_ERROR_MESSAGE)
         if User.objects.filter(phone=phone).exists():
-            raise ValidationError(
-                'Пользователь с таким номером телефона уже существует'
-            )
+            raise ValidationError(PHONE_ALREADY_EXISTS_ERROR)
         return phone
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
         if User.objects.filter(email=email).exists():
-            raise ValidationError(
-                'Пользователь с таким email уже существует'
-            )
+            raise ValidationError(EMAIL_ALREADY_EXISTS_ERROR)
         return email
 
 
@@ -53,7 +57,7 @@ class UserLoginForm(forms.Form):
     password = forms.CharField(label='Пароль', widget=forms.PasswordInput)
 
 
-class UserProfileForm(forms.ModelForm):
+class UserProfileForm(GitHubURLMixin, forms.ModelForm):
     class Meta:
         model = User
         fields = ['name', 'surname', 'avatar', 'about', 'phone', 'github_url']
@@ -62,20 +66,9 @@ class UserProfileForm(forms.ModelForm):
         phone = self.cleaned_data.get('phone')
         if phone.startswith('8'):
             phone = '+7' + phone[1:]
-        if not re.match(r'^\+7\d{10}$', phone):
-            raise ValidationError(
-                'Номер должен быть в формате +7XXXXXXXXXX'
-            )
+        if not re.match(PHONE_REGEX_PATTERN, phone):
+            raise ValidationError(PHONE_ERROR_MESSAGE)
         if (User.objects.exclude(pk=self.instance.pk)
                 .filter(phone=phone).exists()):
-            raise ValidationError(
-                'Пользователь с таким номером телефона уже существует'
-            )
+            raise ValidationError(PHONE_ALREADY_EXISTS_ERROR)
         return phone
-
-    def clean_github_url(self):
-        url = self.cleaned_data.get('github_url')
-        if url and not (url.startswith('https://github.com/') or
-                        url.startswith('http://github.com/')):
-            raise ValidationError('Ссылка должна вести на GitHub')
-        return url
