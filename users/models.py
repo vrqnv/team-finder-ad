@@ -6,6 +6,7 @@ from django.core.files.base import ContentFile
 from django.core.validators import RegexValidator
 from django.db import models
 from PIL import Image, ImageDraw, ImageFont
+
 from users.constants import (
     AVATAR_COLORS,
     AVATAR_SIZE,
@@ -70,31 +71,26 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def generate_avatar(self):
         color = random.choice(AVATAR_COLORS)
-
         image = Image.new('RGB', AVATAR_SIZE, color)
         draw = ImageDraw.Draw(image)
-
-        font = None
-        try:
-            font = ImageFont.truetype(AVATAR_TEXT_FONT_PATH,
-                                      AVATAR_TEXT_FONT_SIZE)
-        except Exception:
-            font = ImageFont.load_default()
-
         text = self.name[0].upper()
 
-        if font == ImageFont.load_default():
-            text_position = (AVATAR_SIZE[0] // 3, AVATAR_SIZE[1] // 3)
-            draw.text(text_position, text, fill=AVATAR_TEXT_COLOR, font=font)
-        else:
-            bbox = draw.textbbox((0, 0), text, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-            position = (
-                (AVATAR_SIZE[0] - text_width) // 2,
-                (AVATAR_SIZE[1] - text_height) // 2
+        try:
+            font = ImageFont.truetype(
+                AVATAR_TEXT_FONT_PATH,
+                AVATAR_TEXT_FONT_SIZE,
             )
-            draw.text(position, text, fill=AVATAR_TEXT_COLOR, font=font)
+        except OSError:
+            font = ImageFont.load_default(size=AVATAR_TEXT_FONT_SIZE)
+
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        position = (
+            (AVATAR_SIZE[0] - text_width) // 2,
+            (AVATAR_SIZE[1] - text_height) // 2,
+        )
+        draw.text(position, text, fill=AVATAR_TEXT_COLOR, font=font)
 
         buffer = BytesIO()
         image.save(buffer, format='PNG')

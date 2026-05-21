@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+
 from projects.constants import (
     MAX_LENGTH_NAME_PROJECT,
     MAX_LENGTH_NAME_SKILL,

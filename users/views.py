@@ -9,6 +9,7 @@ from django.contrib.auth.views import (
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
+
 from users.constants import USERS_PER_PAGE
 from users.forms import UserLoginForm, UserProfileForm, UserRegistrationForm
 from users.models import User

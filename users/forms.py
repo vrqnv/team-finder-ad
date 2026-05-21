@@ -1,9 +1,10 @@
 import re
 
-from core.mixins import GitHubURLMixin
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
+
+from core.mixins import GitHubURLMixin
 from users.constants import (
     EMAIL_ALREADY_EXISTS_ERROR,
     MAX_LENGTH_NAME,

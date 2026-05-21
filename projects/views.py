@@ -4,9 +4,9 @@ from http import HTTPStatus
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
+
 from projects.constants import (
     PROJECTS_PER_PAGE,
     SKILLS_AUTOCOMPLETE_LIMIT,
@@ -75,10 +75,7 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         project.owner = self.request.user
         project.save()
         project.participants.add(self.request.user)
-        return redirect(reverse(
-            'projects:project_detail',
-            kwargs={'project_id': project.pk}
-        ))
+        return redirect(project.get_absolute_url())
 
 
 class ProjectEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -97,20 +94,13 @@ class ProjectEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         context['project'] = self.get_object()
         return context
 
-    def get_success_url(self):
-        return reverse(
-            'projects:project_detail',
-            kwargs={'project_id': self.object.pk}
-        )
-
 
 class ProjectCompleteView(LoginRequiredMixin, UserPassesTestMixin, View):
     def test_func(self):
         project = get_object_or_404(Project, pk=self.kwargs.get('project_id'))
-        return (
-            self.request.user == project.owner and
-            project.status == STATUS_OPEN
-        )
+        is_owner = self.request.user == project.owner
+        is_open = project.status == STATUS_OPEN
+        return is_owner and is_open
 
     def post(self, request, project_id):
         project = get_object_or_404(Project, pk=project_id)
